@@ -19,7 +19,7 @@ export class ModelSystem {
   private tm: number;
   private finishTime: number;
   private machineBusy = false;
-  private machineQueue = [];
+  private machineQueue: Array<EventType> = [];
   private _machineStatus: Array<ResultRow>;
 
   constructor(endTime: number) {
@@ -41,7 +41,7 @@ export class ModelSystem {
 
   private getRandomInt(max = 6, min = 5) {
     const random = Math.floor(Math.random() * (max - min)) + min;
-    console.log("random", random);
+    // console.log("random", random);
     return random; // Math.floor(Math.random() * (max - min)) + min;
   }
 
@@ -61,8 +61,8 @@ export class ModelSystem {
     console.log(this._machineStatus);
     while (this.tm < this.finishTime) {
       const minValue = Math.min(this.te1, this.te2, this.ts, this.finishTime);
-      console.log("min value", minValue);
-      console.log("machine status", this.machineBusy);
+      // console.log("min value", minValue);
+      // console.log("machine status", this.machineBusy);
       switch (minValue) {
         case this.te1:
           if (!this.machineBusy) {
@@ -101,10 +101,10 @@ export class ModelSystem {
       }
       this.tm = minValue;
       this.addResultRow();
-      console.log(this._machineStatus);
-      if (this._machineStatus.length > 10) {
-        return;
-      }
+      // console.log(this._machineStatus);
+      // if (this._machineStatus.length > 10) {
+      //   return;
+      // }
     }
   }
 
