@@ -1,4 +1,8 @@
 import produce from "immer";
+import { timer, noop } from 'rxjs';
+import { take } from 'rxjs/operators'
+import { FormControl } from '@angular/forms';
+import random from 'random';
 
 interface ResultRow {
   modelingTimer: number;
@@ -13,17 +17,21 @@ interface ResultRow {
 type EventType = "1" | "2";
 
 export class ModelSystem {
+  public machineTime = 0;
+  public simulationStatus: ResultRow;
+  public showingSimulation = false;
+  private finishTime: number;
   private te1: number;
   private te2: number;
   private ts: number;
   private tm: number;
-  private finishTime: number;
   private machineBusy = false;
-  private machineQueue: Array<EventType> = [];
+  private machineQueue: Array<EventType>;
   private _machineStatus: Array<ResultRow>;
 
   constructor(endTime: number) {
     this.finishTime = endTime;
+    this.machineQueue = [];
   }
 
   get machineStatus() {
@@ -31,8 +39,8 @@ export class ModelSystem {
   }
 
   private initialSetUp() {
-    this.te1 = this.getRandomInt(10); // event timer 1
-    this.te2 = this.getRandomInt(23); // event timer 2
+    this.te1 = this.erlangDistribution(3, 0.25); // event timer 1
+    this.te2 = this.exponentialRandom(2); // event timer 2
     this.tm = 0;
     this.ts = this.finishTime + 1;
     this.machineQueue = [];
@@ -40,9 +48,35 @@ export class ModelSystem {
   }
 
   private getRandomInt(max = 6, min = 5) {
-    const random = Math.floor(Math.random() * (max - min)) + min;
+    const myRandom = Math.floor(Math.random() * (max - min)) + min;
     // console.log("random", random);
-    return random; // Math.floor(Math.random() * (max - min)) + min;
+    return myRandom; // Math.floor(Math.random() * (max - min)) + min;
+  }
+
+  // Random generators
+  private exponentialRandom(lambda: number): number {
+    console.log(random.float(0,1))
+    const u = random.float(0.000000001, 0.999999999);
+    const myRandom = (-1/lambda) * (Math.log10(1-u))
+    return myRandom; 
+  }
+
+  private erlangDistribution(timesL: number, lambda: number): number {
+    let sum = 0;
+    for (let i = 0; i < timesL; i++) {
+      sum = sum + this.exponentialRandom(lambda)
+    }
+    return sum;
+  }
+
+  private normalDistribution(sigma: number, median: number): number {
+    const n = 100;
+    let sum = 0;
+    for (let i = 0; i < n; i++) {
+      sum = sum + random.float(0, 1);
+    }
+    const z = (sum - n/2)/(Math.sqrt(n/12))
+    return ((z*sigma) + median)
   }
 
   private addToQueue(item) {
@@ -58,7 +92,7 @@ export class ModelSystem {
   public model() {
     this.initialSetUp();
     this.addResultRow();
-    console.log(this._machineStatus);
+    // console.log(this._machineStatus);
     while (this.tm < this.finishTime) {
       const minValue = Math.min(this.te1, this.te2, this.ts, this.finishTime);
       // console.log("min value", minValue);
@@ -67,20 +101,20 @@ export class ModelSystem {
         case this.te1:
           if (!this.machineBusy) {
             this.machineBusy = true;
-            this.ts = minValue + this.getRandomInt(11); // handle timer 1
+            this.ts = minValue + this.normalDistribution(1.5, 14); // handle timer 1
           } else {
             this.addToQueue("1");
           }
-          this.te1 = minValue + this.getRandomInt(10);
+          this.te1 = minValue + this.erlangDistribution(3, 0.25);
           break;
         case this.te2:
           if (!this.machineBusy) {
             this.machineBusy = true;
-            this.ts = minValue + this.getRandomInt(25); // handle timer 2
+            this.ts = minValue + this.exponentialRandom(3); // handle timer 2
           } else {
             this.addToQueue("2");
           }
-          this.te2 = minValue + this.getRandomInt(23);
+          this.te2 = minValue + this.exponentialRandom(2);
           break;
         case this.ts:
           if (this.machineQueue.length === 0) {
@@ -89,9 +123,9 @@ export class ModelSystem {
           } else {
             const eventType = this.removeFromQueue();
             if (eventType === "1") {
-              this.ts = minValue + this.getRandomInt(17);
+              this.ts = minValue + this.normalDistribution(1.5, 14);
             } else {
-              this.ts = minValue + this.getRandomInt(33);
+              this.ts = minValue + this.exponentialRandom(3);
             }
           }
           break;
@@ -106,6 +140,28 @@ export class ModelSystem {
       //   return;
       // }
     }
+  }
+
+  public visualizeData(endTime: FormControl, timerSpeed: FormControl) {
+    this.finishTime = parseInt(endTime.value);
+    console.log(timerSpeed.value)
+    endTime.disable();
+    this.model();
+    const counter = timer(500,timerSpeed.value);
+    timerSpeed.disable();
+    this.showingSimulation = true;
+    counter.pipe(take(this.finishTime + 1)).subscribe(time => {
+      this.machineTime = time;
+      const matchingStatus = this._machineStatus.find(item => item.modelingTimer === time);
+      // console.log(matchingStatus);
+      if(matchingStatus) {
+        this.simulationStatus = matchingStatus;
+      }
+    },noop,
+    ()=> {
+      endTime.enable();
+      timerSpeed.enable();
+    });
   }
 
   private addResultRow() {

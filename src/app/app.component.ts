@@ -1,5 +1,6 @@
 import { Component } from "@angular/core";
 import { ModelSystem } from "./shared/system";
+import { FormControl } from '@angular/forms';
 
 @Component({
   selector: "app-root",
@@ -7,10 +8,17 @@ import { ModelSystem } from "./shared/system";
   styleUrls: ["./app.component.css"]
 })
 export class AppComponent {
-  private modeler = new ModelSystem(200); // TODO: Change to 500
+  public showTable = false;
+  public timerSpeed = new FormControl(200);
+  public endTime = new FormControl(500);
+  public modeler = new ModelSystem(200); // TODO: Change to 500
 
-  public onButtonClick() {
-    this.modeler.model();
-    console.log(this.modeler.machineStatus);
+  public showResults() {
+    // console.log(this.modeler.machineStatus);
+    this.showTable = !this.showTable;
+  }
+
+  public onStart() {
+    this.modeler.visualizeData(this.endTime,this.timerSpeed);
   }
 }

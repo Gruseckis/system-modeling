@@ -1,3 +1,66 @@
-<button (click)="onButtonClick()">
-  TEST
+
+
+<label>
+  End time:
+  <input placeholder="End Time" [formControl]="endTime"/>
+</label>
+<label>
+  Timer speed (ms):
+  <input placeholder="End Time" [formControl]="timerSpeed">
+</label>
+<button (click)="onStart()" [disabled]="modeler.showingSimulation">
+  Start timer
 </button>
+<p>Machine time: {{modeler.machineTime}}</p>
+
+<ng-container *ngIf="modeler.simulationStatus">
+  <div class="event first-event">
+    <p>Event 1</p>
+    <p>Time: {{modeler.simulationStatus.timerEvent1}}</p>
+  </div>
+  <div class="event second-event">
+    <p>Event 2</p>
+    <p>Time: {{modeler.simulationStatus.timerEvent2}}</p>
+  </div>
+  <div class="queue">
+    <p>Queue: [{{modeler.simulationStatus.queue}}]</p>
+  </div>
+  <div class="machine">
+    <p>
+      Machine status: 
+      <span [ngClass]="{'red': modeler.simulationStatus.systemFree, 'green': !modeler.simulationStatus.systemFree}">
+        {{modeler.simulationStatus.systemFree ? 'Busy' : 'Free'}}
+      </span>
+    </p>
+    <p>Finish timer: {{modeler.simulationStatus.handleTimeEnd}}</p>
+  </div>
+</ng-container>
+
+<button (click)="showResults()">
+  {{showTable ? 'Hide' : 'Show'}} results
+</button>
+
+<table *ngIf="modeler.machineStatus?.length > 0 && showTable">
+  <thead>
+    <tr class="table-header">
+      <th>Modeling Time</th>
+      <th>Event 1</th>
+      <th>Event 2</th>
+      <th>Handle Time</th>
+      <th>Machine status</th>
+      <th>Queue</th>
+    </tr>
+  </thead>
+  <tbody>
+    <ng-container *ngFor="let item of modeler.machineStatus; let i=index">
+      <tr class="data-row" *ngIf="i < 20 || i > modeler.machineStatus.length - 4">
+        <td>{{item.modelingTimer}}</td>
+        <td>{{item.timerEvent1}}</td>
+        <td>{{item.timerEvent2}}</td>
+        <td>{{item.handleTimeEnd}}</td>
+        <td>{{item.systemFree ? 'Busy' : 'Free'}}</td>
+        <td class="queue-cell">{{item.queue}}</td>
+      </tr>
+    </ng-container>
+  </tbody>
+</table>
