@@ -1,8 +1,11 @@
-import produce from "immer";
-import { timer, noop } from 'rxjs';
-import { take } from 'rxjs/operators'
+import produce from 'immer';
+// import { timer, noop } from 'rxjs';
+// import { take } from 'rxjs/operators';
 import { FormControl } from '@angular/forms';
 import random from 'random';
+import seedrandom from 'seedrandom';
+import { Parser } from 'json2csv';
+// import { writeFileSync } from 'fs';
 
 interface ResultRow {
   modelingTimer: number;
@@ -14,7 +17,7 @@ interface ResultRow {
   queue: Array<EventType>;
 }
 
-type EventType = "1" | "2";
+type EventType = '1' | '2';
 
 export class ModelSystem {
   public machineTime = 0;
@@ -28,10 +31,15 @@ export class ModelSystem {
   private machineBusy = false;
   private machineQueue: Array<EventType>;
   private _machineStatus: Array<ResultRow>;
+  private te1Times = [];
+  private te2Times = [];
+  private te1HandleTimes = [];
+  private te2HandleTimes = [];
 
   constructor(endTime: number) {
     this.finishTime = endTime;
     this.machineQueue = [];
+    random.use(seedrandom('mySeed'));
   }
 
   get machineStatus() {
@@ -40,31 +48,26 @@ export class ModelSystem {
 
   private initialSetUp() {
     this.te1 = this.erlangDistribution(3, 0.25); // event timer 1
+    this.te1Times.push(this.te1);
     this.te2 = this.exponentialRandom(2); // event timer 2
+    this.te2Times.push(this.te2);
     this.tm = 0;
     this.ts = this.finishTime + 1;
     this.machineQueue = [];
     this._machineStatus = [];
   }
 
-  private getRandomInt(max = 6, min = 5) {
-    const myRandom = Math.floor(Math.random() * (max - min)) + min;
-    // console.log("random", random);
-    return myRandom; // Math.floor(Math.random() * (max - min)) + min;
-  }
-
   // Random generators
   private exponentialRandom(lambda: number): number {
-    console.log(random.float(0,1))
     const u = random.float(0.000000001, 0.999999999);
-    const myRandom = (-1/lambda) * (Math.log10(1-u))
-    return myRandom; 
+    const myRandom = (-1 / lambda) * Math.log(1 - u);
+    return myRandom;
   }
 
   private erlangDistribution(timesL: number, lambda: number): number {
     let sum = 0;
     for (let i = 0; i < timesL; i++) {
-      sum = sum + this.exponentialRandom(lambda)
+      sum = sum + this.exponentialRandom(lambda);
     }
     return sum;
   }
@@ -75,8 +78,8 @@ export class ModelSystem {
     for (let i = 0; i < n; i++) {
       sum = sum + random.float(0, 1);
     }
-    const z = (sum - n/2)/(Math.sqrt(n/12))
-    return ((z*sigma) + median)
+    const z = (sum - n / 2) / Math.sqrt(n / 12);
+    return z * sigma + median;
   }
 
   private addToQueue(item) {
@@ -92,29 +95,30 @@ export class ModelSystem {
   public model() {
     this.initialSetUp();
     this.addResultRow();
-    // console.log(this._machineStatus);
     while (this.tm < this.finishTime) {
       const minValue = Math.min(this.te1, this.te2, this.ts, this.finishTime);
-      // console.log("min value", minValue);
-      // console.log("machine status", this.machineBusy);
       switch (minValue) {
         case this.te1:
           if (!this.machineBusy) {
             this.machineBusy = true;
-            this.ts = minValue + this.normalDistribution(1.5, 14); // handle timer 1
+            this.addTe1HandleTimer(minValue);
           } else {
-            this.addToQueue("1");
+            this.addToQueue('1');
           }
-          this.te1 = minValue + this.erlangDistribution(3, 0.25);
+          const te1Time = this.erlangDistribution(3, 0.25); // event timer 1
+          this.te1 = minValue + te1Time;
+          this.te1Times.push(te1Time);
           break;
         case this.te2:
           if (!this.machineBusy) {
             this.machineBusy = true;
-            this.ts = minValue + this.exponentialRandom(3); // handle timer 2
+            this.addTe2HandleTimer(minValue);
           } else {
-            this.addToQueue("2");
+            this.addToQueue('2');
           }
-          this.te2 = minValue + this.exponentialRandom(2);
+          const te2Time = this.exponentialRandom(2); // event timer 2
+          this.te2 = minValue + te2Time;
+          this.te2Times.push(this.te2);
           break;
         case this.ts:
           if (this.machineQueue.length === 0) {
@@ -122,10 +126,10 @@ export class ModelSystem {
             this.machineBusy = false;
           } else {
             const eventType = this.removeFromQueue();
-            if (eventType === "1") {
-              this.ts = minValue + this.normalDistribution(1.5, 14);
+            if (eventType === '1') {
+              this.addTe1HandleTimer(minValue);
             } else {
-              this.ts = minValue + this.exponentialRandom(3);
+              this.addTe2HandleTimer(minValue);
             }
           }
           break;
@@ -135,33 +139,48 @@ export class ModelSystem {
       }
       this.tm = minValue;
       this.addResultRow();
-      // console.log(this._machineStatus);
-      // if (this._machineStatus.length > 10) {
-      //   return;
-      // }
     }
   }
 
   public visualizeData(endTime: FormControl, timerSpeed: FormControl) {
-    this.finishTime = parseInt(endTime.value);
-    console.log(timerSpeed.value)
-    endTime.disable();
+    this.finishTime = parseInt(endTime.value, 10);
     this.model();
-    const counter = timer(500,timerSpeed.value);
-    timerSpeed.disable();
-    this.showingSimulation = true;
-    counter.pipe(take(this.finishTime + 1)).subscribe(time => {
-      this.machineTime = time;
-      const matchingStatus = this._machineStatus.find(item => item.modelingTimer === time);
-      // console.log(matchingStatus);
-      if(matchingStatus) {
-        this.simulationStatus = matchingStatus;
-      }
-    },noop,
-    ()=> {
-      endTime.enable();
-      timerSpeed.enable();
-    });
+  }
+
+  public downloadCsv() {
+    this.downloadFile(this.te1Times, 'Event 1 times');
+    this.downloadFile(this.te2Times, 'Event 2 times');
+    this.downloadFile(this.te1HandleTimes, 'Event 1 handle times');
+    this.downloadFile(this.te2HandleTimes, 'Event 2 handle times');
+  }
+
+  private async downloadFile(data: Array<any>, filename = 'data') {
+    const parser = new Parser({ fields: ['sequence', 'time'] });
+    const myMap = data.reduce((acc, curr, index) => {
+      const newItem = {
+        sequence: index,
+        time: curr
+      };
+      acc.push(newItem);
+      return acc;
+    }, []);
+    console.log(myMap);
+    const csvData = await parser.parse(myMap);
+    console.log(csvData);
+    const blob = new Blob(['\ufeff' + csvData], { type: 'text/csv;charset=utf-8;' });
+    const dwldLink = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    const isSafariBrowser =
+      navigator.userAgent.indexOf('Safari') !== -1 && navigator.userAgent.indexOf('Chrome') === -1;
+    if (isSafariBrowser) {
+      dwldLink.setAttribute('target', '_blank');
+    }
+    dwldLink.setAttribute('href', url);
+    dwldLink.setAttribute('download', filename + '.csv');
+    dwldLink.style.visibility = 'hidden';
+    document.body.appendChild(dwldLink);
+    dwldLink.click();
+    document.body.removeChild(dwldLink);
   }
 
   private addResultRow() {
@@ -176,5 +195,17 @@ export class ModelSystem {
         queue: this.machineQueue
       });
     });
+  }
+
+  private addTe1HandleTimer(minValue) {
+    const te1handleTime = this.normalDistribution(1.5, 14); // handle timer 1
+    this.ts = minValue + te1handleTime;
+    this.te1HandleTimes.push(te1handleTime);
+  }
+
+  private addTe2HandleTimer(minValue) {
+    const te2HandleTime = this.exponentialRandom(3); // handle timer 2
+    this.ts = minValue + te2HandleTime;
+    this.te2HandleTimes.push(te2HandleTime);
   }
 }
