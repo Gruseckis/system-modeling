@@ -1,17 +1,15 @@
-
-
 <label>
   End time:
-  <input placeholder="End Time" [formControl]="endTime"/>
+  <input placeholder="End Time" [formControl]="endTime" />
 </label>
 <label>
   Timer speed (ms):
-  <input placeholder="End Time" [formControl]="timerSpeed">
+  <input placeholder="End Time" [formControl]="timerSpeed" />
 </label>
 <button (click)="onStart()" [disabled]="modeler.showingSimulation">
-  Start timer
+  Start simulation
 </button>
-<p>Machine time: {{modeler.machineTime}}</p>
+<!-- <p>Machine time: {{modeler.machineTime}}</p>
 
 <ng-container *ngIf="modeler.simulationStatus">
   <div class="event first-event">
@@ -34,11 +32,9 @@
     </p>
     <p>Finish timer: {{modeler.simulationStatus.handleTimeEnd}}</p>
   </div>
-</ng-container>
+</ng-container> -->
 
-<button (click)="showResults()">
-  {{showTable ? 'Hide' : 'Show'}} results
-</button>
+<button (click)="downloadResults()">Download results</button>
 
 <table *ngIf="modeler.machineStatus?.length > 0 && showTable">
   <thead>
@@ -48,18 +44,20 @@
       <th>Event 2</th>
       <th>Handle Time</th>
       <th>Machine status</th>
+      <th>Queue length</th>
       <th>Queue</th>
     </tr>
   </thead>
   <tbody>
-    <ng-container *ngFor="let item of modeler.machineStatus; let i=index">
+    <ng-container *ngFor="let item of modeler.machineStatus; let i = index">
       <tr class="data-row" *ngIf="i < 20 || i > modeler.machineStatus.length - 4">
-        <td>{{item.modelingTimer}}</td>
-        <td>{{item.timerEvent1}}</td>
-        <td>{{item.timerEvent2}}</td>
-        <td>{{item.handleTimeEnd}}</td>
-        <td>{{item.systemFree ? 'Busy' : 'Free'}}</td>
-        <td class="queue-cell">{{item.queue}}</td>
+        <td>{{ item.modelingTimer }}</td>
+        <td>{{ item.timerEvent1 }}</td>
+        <td>{{ item.timerEvent2 }}</td>
+        <td>{{ item.handleTimeEnd }}</td>
+        <td>{{ item.systemFree ? 'Busy' : 'Free' }}</td>
+        <td>{{ item.queueLength }}</td>
+        <td class="queue-cell">{{ item.queue }}</td>
       </tr>
     </ng-container>
   </tbody>
