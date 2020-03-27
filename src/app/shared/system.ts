@@ -35,6 +35,9 @@ export class ModelSystem {
   private te2Times = [];
   private te1HandleTimes = [];
   private te2HandleTimes = [];
+  public totalArrivals: number;
+  public systemIdle: number;
+  public systemIdlePersentage: number;
 
   constructor(endTime: number) {
     this.finishTime = endTime;
@@ -67,7 +70,8 @@ export class ModelSystem {
   private erlangDistribution(timesL: number, lambda: number): number {
     let sum = 0;
     for (let i = 0; i < timesL; i++) {
-      sum = sum + this.exponentialRandom(lambda);
+      const expRandom = this.exponentialRandom(lambda);
+      sum = sum + expRandom;
     }
     return sum;
   }
@@ -99,6 +103,7 @@ export class ModelSystem {
       const minValue = Math.min(this.te1, this.te2, this.ts, this.finishTime);
       switch (minValue) {
         case this.te1:
+          this.totalArrivals++;
           if (!this.machineBusy) {
             this.machineBusy = true;
             this.addTe1HandleTimer(minValue);
@@ -110,6 +115,7 @@ export class ModelSystem {
           this.te1Times.push(te1Time);
           break;
         case this.te2:
+          this.totalArrivals++;
           if (!this.machineBusy) {
             this.machineBusy = true;
             this.addTe2HandleTimer(minValue);
@@ -118,7 +124,7 @@ export class ModelSystem {
           }
           const te2Time = this.exponentialRandom(2); // event timer 2
           this.te2 = minValue + te2Time;
-          this.te2Times.push(this.te2);
+          this.te2Times.push(te2Time);
           break;
         case this.ts:
           if (this.machineQueue.length === 0) {
@@ -142,9 +148,51 @@ export class ModelSystem {
     }
   }
 
+  public generateRandomTestData(recordCount: number) {
+    const data = [];
+    let subset = [];
+    for (let i = 0; i < recordCount; i++) {
+      subset.push(this.erlangDistribution(3, 0.25));
+    }
+    data.push(subset);
+    subset = [];
+    for (let i = 0; i < recordCount; i++) {
+      subset.push(this.exponentialRandom(2));
+    }
+    data.push(subset);
+    subset = [];
+    for (let i = 0; i < recordCount; i++) {
+      subset.push(this.normalDistribution(1.5, 14));
+    }
+    data.push(subset);
+    subset = [];
+    for (let i = 0; i < recordCount; i++) {
+      subset.push(this.exponentialRandom(3));
+    }
+    data.push(subset);
+    const fileNames = [
+      'Test event 1 times',
+      'Test event 2 times',
+      'Test event 1 handle times',
+      'Test event 2 handle times'
+    ];
+    fileNames.map((name, index) => {
+      this.downloadFile(data[index], name);
+    });
+  }
+
   public visualizeData(endTime: FormControl, timerSpeed: FormControl) {
+    this.totalArrivals = 0;
+    this.systemIdle = 0;
     this.finishTime = parseInt(endTime.value, 10);
     this.model();
+    const machineFree = this._machineStatus.filter(item => item.systemFree);
+    machineFree.forEach(item => {
+      const min = Math.min(item.timerEvent1, item.timerEvent2);
+      this.systemIdle = this.systemIdle + (min - item.modelingTimer);
+    });
+    this.systemIdlePersentage =
+      this.systemIdle === 0 ? 0 : Math.round((this.systemIdle / this.finishTime) * 100 * 100) / 100;
   }
 
   public downloadCsv() {
@@ -190,7 +238,7 @@ export class ModelSystem {
         timerEvent1: this.te1,
         timerEvent2: this.te2,
         handleTimeEnd: this.ts,
-        systemFree: this.machineBusy,
+        systemFree: !this.machineBusy,
         queueLength: this.machineQueue.length,
         queue: this.machineQueue
       });

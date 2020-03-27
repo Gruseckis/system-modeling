@@ -2,10 +2,10 @@
   End time:
   <input placeholder="End Time" [formControl]="endTime" />
 </label>
-<label>
+<!-- <label>
   Timer speed (ms):
   <input placeholder="End Time" [formControl]="timerSpeed" />
-</label>
+</label> -->
 <button (click)="onStart()" [disabled]="modeler.showingSimulation">
   Start simulation
 </button>
@@ -36,6 +36,13 @@
 
 <button (click)="downloadResults()">Download results</button>
 
+<button (click)="downloadTestData()">Download test data</button>
+<div *ngIf="modeler.machineStatus?.length > 0">
+  <h4>Report</h4>
+  <p>System idle: {{ modeler.systemIdlePersentage }}%</p>
+  <p>Total entries: {{ modeler.totalArrivals }}</p>
+  <p>Queue length: {{ modeler.machineStatus[modeler.machineStatus.length - 1].queueLength }}</p>
+</div>
 <table *ngIf="modeler.machineStatus?.length > 0 && showTable">
   <thead>
     <tr class="table-header">
@@ -55,7 +62,7 @@
         <td>{{ item.timerEvent1 }}</td>
         <td>{{ item.timerEvent2 }}</td>
         <td>{{ item.handleTimeEnd }}</td>
-        <td>{{ item.systemFree ? 'Busy' : 'Free' }}</td>
+        <td>{{ item.systemFree ? 'Free' : 'Busy' }}</td>
         <td>{{ item.queueLength }}</td>
         <td class="queue-cell">{{ item.queue }}</td>
       </tr>

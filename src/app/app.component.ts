@@ -17,6 +17,10 @@ export class AppComponent {
     this.modeler.downloadCsv();
   }
 
+  public downloadTestData() {
+    this.modeler.generateRandomTestData(1000);
+  }
+
   public onStart() {
     this.modeler.visualizeData(this.endTime, this.timerSpeed);
   }
